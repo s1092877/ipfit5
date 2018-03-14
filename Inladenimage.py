@@ -8,10 +8,10 @@ from tabulate import tabulate
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description=__description__,
-        epilog="Developed by {} on {}".format(
-        ", ".join(__authors__), __date__)
-    )
+        description=' __description__',
+        epilog= "Developed by {} on {}".format(
+        ", ".join('__authors__'), '__date__')
+                        )
     parser.add_argument("EVIDENCE_FILE", help="Evidence file path")
     parser.add_argument("TYPE",
             help="Type of evidence: raw (dd) or EWF (E01)",
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if os.path.exists(args.EVIDENCE_FILE) and \
             os.path.isfile(args.EVIDENCE_FILE):
-        main(args.EVIDENCE_FILE, args.TYPE, args.offset)
+                main(args.EVIDENCE_FILE, args.TYPE, args.offset)
     else:
         print("[-] Supplied input file {} does not exist or is not a "
             "file".format(args.EVIDENCE_FILE))
