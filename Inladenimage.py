@@ -1,77 +1,285 @@
-from __future__ import print_function
-import argparse
-import os
-import pytsk3
-import pyewf
-import sys
-from tabulate import tabulate
+# Importeer TKinter voor GUI
+
+import tkinter as tk
+
+from tkinter import *
+
+from tkinter import filedialog
+
+
+
+opdracht1 = "IP-adressen"
+
+opdracht2 = "Mailadressen"
+
+opdracht3 = "Entiteiten"
+
+root = tk.Tk()
+
+
+
+def main():
+
+
+
+    global var
+
+    var = IntVar()
+
+
+
+
+
+    # Toon welkom bericht
+
+    welkomLabel = tk.Label(root, text = "Welkom bij de applicatie Groep7. Selecteer wat u wilt doen en klik op Volgende")
+
+    welkomLabel.pack()
+
+
+
+    # Radiobuttons aanmaken voor keuze te maken
+
+
+
+    R1 = Radiobutton(root, text = opdracht1,variable = var, value = 1)
+
+    R1.pack(anchor = W)
+
+    R2 = Radiobutton(root, text = opdracht2, variable = var, value = 2)
+
+    R2.pack(anchor = W)
+
+    R3 = Radiobutton(root, text = opdracht3, variable = var, value = 3)
+
+    R3.pack(anchor = W)
+
+
+
+
+
+
+
+
+
+
+
+        # Button aanmken om keuze te bevestigen
+
+
+
+    B1 = Button (root, text = "Volgende", command = lambda : keuze())
+
+    B1.pack(anchor = E)
+
+
+
+    global  L1
+
+
+
+
+
+
+
+    root.mainloop()
+
+
+
+def keuzePrint(opdracht):
+
+    L1 = tk.Label(root, text="U heeft gekozen voor: " + opdracht)
+
+    L1.pack()
+
+
+
+def get_output_filename(input_file_name):
+
+    """ replace the suffix of the file with .rst """
+
+    return input_file_name.rpartition(".")[0]
+
+
+
+def gui():
+
+    def button_go_callback():
+
+        """ what to do when the "Go" button is pressed """
+
+        input_file = entry.get()
+
+        if input_file.rsplit(".")[-1] != "E01":
+
+            statusText.set("Filename must end in `.E01'")
+
+            message.configure(fg="red")
+
+            return
+
+        else:
+
+            table_contents = read_E01(input_file)
+
+            if table_contents is None:
+
+                statusText.set("Error reading file `{}'".format(input_file))
+
+                message.configure(fg="red")
+
+                return
+
+            output_file = get_output_filename(input_file)
+
+            if write_table(output_file, table_contents):
+
+                statusText.set("Output is in {}".format(output_file))
+
+                message.configure(fg="black")
+
+            else:
+
+                statusText.set("Writing file "
+
+                               "`{}' did not succeed".format(output_file))
+
+                message.configure(fg="red")
+
+
+
+    def button_browse_callback():
+
+        """ What to do when the Browse button is pressed """
+
+        filename = filedialog.askopenfilename()
+
+        entry.delete(0, END)
+
+        entry.insert(0, filename)
+
+
+
+    root = Tk()
+
+    frame = Frame(root)
+
+    frame.pack()
+
+
+
+    statusText = StringVar(root)
+
+    statusText.set("Press Browse button or enter E01 filename, "
+
+                   "then press the Go button")
+
+
+
+    label = Label(root, text="E01: ")
+
+    label.pack()
+
+    entry = Entry(root, width=50)
+
+    entry.pack()
+
+    separator = Frame(root, height=2, bd=1, relief=SUNKEN)
+
+    separator.pack(fill=X, padx=5, pady=5)
+
+
+
+    button_go = Button(root,
+
+                       text="Go",
+
+                       command=button_go_callback)
+
+    button_browse = Button(root,
+
+                           text="Browse",
+
+                           command=button_browse_callback)
+
+    button_exit = Button(root,
+
+                         text="Exit",
+
+                         command=sys.exit)
+
+    button_go.pack()
+
+    button_browse.pack()
+
+    button_exit.pack()
+
+
+
+    separator = Frame(root, height=2, bd=1, relief=SUNKEN)
+
+    separator.pack(fill=X, padx=5, pady=5)
+
+
+
+    message = Label(root, textvariable=statusText)
+
+    message.pack()
+
+
+
+def keuze():
+
+    global selectie
+
+    selectie = var.get()
+
+    if selectie == 1:
+
+        keuzePrint(opdracht1)
+
+        gui()
+
+        button_browse = Button(root,
+
+                               text="Browse",
+
+                               command=button_browse_callback)
+
+    elif selectie == 2:
+
+        keuzePrint(opdracht2)
+
+        gui()
+
+        button_browse = Button(root,
+
+                               text="Browse",
+
+                               command=button_browse_callback)
+
+    elif selectie == 3:
+
+        keuzePrint(opdracht3)
+
+        gui()
+
+        button_browse = Button(root,
+
+                               text="Browse",
+
+                               command=button_browse_callback)
+
+    else:
+
+        print("Geen keuze")
+
+
+
+
+
+
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description=' __description__',
-        epilog= "Developed by {} on {}".format(
-        ", ".join('__authors__'), '__date__')
-                        )
-    parser.add_argument("EVIDENCE_FILE", help="Evidence file path")
-    parser.add_argument("TYPE",
-            help="Type of evidence: raw (dd) or EWF (E01)",
-            choices=("raw", "ewf"))
-    parser.add_argument("-o", "--offset",
-            help="Partition byte offset", type=int)
-    args = parser.parse_args()
-    if os.path.exists(args.EVIDENCE_FILE) and \
-            os.path.isfile(args.EVIDENCE_FILE):
-                main(args.EVIDENCE_FILE, args.TYPE, args.offset)
-    else:
-        print("[-] Supplied input file {} does not exist or is not a "
-            "file".format(args.EVIDENCE_FILE))
-        sys.exit(1)
 
-def main(image, img_type, offset):
-    print("[+] Opening {}".format(image))
-    if img_type == "ewf":
-        try:
-            filenames = pyewf.glob(image)
-        except IOError:
-            _, e, _ = sys.exc_info()
-            print("[-] Invalid EWF format:\n {}".format(e))
-            sys.exit(2)
-        ewf_handle = pyewf.handle()
-        ewf_handle.open(filenames)
-        # Open PYTSK3 handle on EWF Image
-        img_info = EWFImgInfo(ewf_handle)
-    else:
-        img_info = pytsk3.Img_Info(image)
-    # Get Filesystem Handle
-    try:
-        fs = pytsk3.FS_Info(img_info, offset)
-    except IOError:
-        _, e, _ = sys.exc_info()
-        print("[-] Unable to open FS:\n {}".format(e))
-        exit()
-    root_dir = fs.open_dir(path="/")
-    table = [["Name", "Type", "Size", "Create Date", "Modify Date"]]
-    for f in root_dir:
-        name = f.info.name.name
-    if f.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
-        f_type = "DIR"
-    else:
-        f_type = "FILE"
-        size = f.info.meta.size
-        create = f.info.meta.crtime
-        modify = f.info.meta.mtime
-        table.append([name, f_type, size, create, modify])
-    print(tabulate(table, headers="firstrow"))
-
-class EWFImgInfo(pytsk3.Img_Info):
-    def __init__(self, ewf_handle):
-        self._ewf_handle = ewf_handle
-        super(EWFImgInfo, self).__init__(url="",
-        type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
-    def close(self):
-        self._ewf_handle.close()
-    def read(self, offset, size):
-        self._ewf_handle.seek(offset)
-        return self._ewf_handle.read(size)
-    def get_size(self):
-        return self._ewf_handle.get_media_size()
+    main()
