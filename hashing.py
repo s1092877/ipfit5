@@ -7,36 +7,56 @@ __authors__ = ["Cas van Andel"]
 __date__ = 20170815
 __description__ = "Script to hash a file's name and contents"
 
-available_algorithms = {
-    "md5": hashlib.md5,
-    "sha1": hashlib.sha1,
-    "sha256": hashlib.sha256,
-    "sha512": hashlib.sha512
-}
-parser = argparse.ArgumentParser(
-    description=__description__,
-    epilog="Developed by {} on {}".format(", ".join(__authors__), __date__)
-)
-parser.add_argument("FILE_NAME", help="Path of file to hash")
-parser.add_argument("ALGORITHM", help="Hash algorithm to use",
-choices=sorted(available_algorithms.keys()))
+class hashing():
+    """
+    voorbeeld van een class wide variable, dit zou Pi kunnen zijn ofzo
+    """
+    voorbeeld = []
 
-args = parser.parse_args()
-input_file = args.FILE_NAME
-hash_alg = args.ALGORITHM
+    def __init__(self, input):
+        """
+        voorbeeld doc en een manier om een class te schrijven
+        :param input: deze i
+        """
+        self.input = input
+        self.hash()
 
-file_name = available_algorithms[hash_alg]()
-abs_path = os.path.abspath(input_file)
-file_name.update(abs_path.encode())
-print("The {} of the filename is: {}".format(hash_alg, file_name.hexdigest()))
+    def hash(self):
+        """
+        de functie dus om het te hashen
+        :return:
+        """
+        available_algorithms = {
+            "md5": hashlib.md5,
+            "sha1": hashlib.sha1,
+            "sha256": hashlib.sha256,
+            "sha512": hashlib.sha512
+        }
+        parser = argparse.ArgumentParser(
+            description=__description__,
+            epilog="Developed by {} on {}".format(", ".join(__authors__), __date__)
+        )
+        parser.add_argument("FILE_NAME", help="Path of file to hash")
+        parser.add_argument("ALGORITHM", help="Hash algorithm to use",
+        choices=sorted(available_algorithms.keys()))
 
-file_content = available_algorithms[hash_alg]()
-with open(input_file, 'rb') as open_file:
-    buff_size = 1024
-    buff = open_file.read(buff_size)
-    while buff:
-        file_content.update(buff)
-        buff = open_file.read(buff_size)
+        args = parser.parse_args()
+        input_file = args.FILE_NAME
+        hash_alg = args.ALGORITHM
 
-print("The {} of the content is: {}".format(
-    hash_alg, file_content.hexdigest()))
+        file_name = available_algorithms[hash_alg]()
+        abs_path = os.path.abspath(input_file)
+        file_name.update(abs_path.encode())
+        print("The {} of the filename is: {}".format(hash_alg, file_name.hexdigest()))
+
+        file_content = available_algorithms[hash_alg]()
+        with open(input_file, 'rb') as open_file:
+            buff_size = 1024
+            buff = open_file.read(buff_size)
+            while buff:
+                file_content.update(buff)
+                buff = open_file.read(buff_size)
+
+        print("The {} of the content is: {}".format(
+            hash_alg, file_content.hexdigest()))
+        print(self.input)
