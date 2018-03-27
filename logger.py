@@ -2,32 +2,37 @@ from __future__ import print_function
 import logging
 import sys
 
-logger = logging.getLogger(__file__)
-logger.setLevel(logging.DEBUG)
+class loggerClass():
 
-msg_fmt = logging.Formatter("%(asctime)-15s %(funcName)-20s"
-                            "%(levelname)-8s %(message)s")
+    def __init__(self, input):
+        self.input = input
+        l = loggerClass()
 
-strhndl = logging.StreamHandler(sys.stdout)
-strhndl.setFormatter(fmt=msg_fmt)
+    def logger(self):
 
-fhndl = logging.FileHandler(__file__ + ".log", mode='a')
-fhndl.setFormatter(fmt=msg_fmt)
+        logger = logging.getLogger(__file__)
+        logger.setLevel(logging.DEBUG)
 
-logger.addHandler(strhndl)
-logger.addHandler(fhndl)
+        msg_fmt = logging.Formatter("%(asctime)-15s %(funcName)-20s"
+                                    "%(levelname)-8s %(message)s")
 
-logger.info("information message")
-logger.debug("debug message")
+        strhndl = logging.StreamHandler(sys.stdout)
+        strhndl.setFormatter(fmt=msg_fmt)
+
+        fhndl = logging.FileHandler(__file__ + ".log", mode='a')
+        fhndl.setFormatter(fmt=msg_fmt)
+
+        logger.addHandler(strhndl)
+        logger.addHandler(fhndl)
+
+        logger.info("information message")
+        logger.debug("debug message")
 
 
-def function_one():
-    logger.warning("warning message")
+    def function_one(self):
+        logger.warning("warning message")
 
 
-def function_two():
-    logger.error("error message")
+    def function_two(self):
+        logger.error("error message")
 
-
-function_one()
-function_two()
