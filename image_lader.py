@@ -1,6 +1,7 @@
 from __future__ import print_function
 import argparse
 import csv
+from datetime import datetime
 import os
 import pytsk3
 import pyewf
@@ -36,10 +37,10 @@ SOFTWARE.
 
 __authors__ = ["Chapin Bryce", "Preston Miller"]
 __date__ = 20170815
-__description__ = "Utility to extract files from evidence containers"
+__description__ = "Utility to iterate over files in an evidence containers"
 
 
-def main(image, img_type, ext, output, part_type):
+def main(image, img_type, output, part_type):
     volume = None
     print("[+] Opening {}".format(image))
     if img_type == "ewf":
@@ -68,18 +69,18 @@ def main(image, img_type, ext, output, part_type):
         _, e, _ = sys.exc_info()
         print("[-] Unable to read partition table:\n {}".format(e))
 
-    open_fs(volume, img_info, ext, output)
+    open_fs(volume, img_info, output)
 
 
-def open_fs(vol, img, ext, output):
+def open_fs(vol, img, output):
+    print("[+] Recursing through files..")
+    recursed_data = []
     # Open FS and Recurse
-    print("[+] Recursing through files and writing file extension matches "
-          "to output directory")
     if vol is not None:
         for part in vol:
-            if part.len > 2048 and "Unallocated" not in part.desc \
-                    and "Extended" not in part.desc \
-                    and "Primary Table" not in part.desc:
+            if part.len > 2048 and "Unallocated" not in part.desc and \
+                    "Extended" not in part.desc and \
+                    "Primary Table" not in part.desc:
                 try:
                     fs = pytsk3.FS_Info(
                         img, offset=part.start * vol.info.block_size)
@@ -87,7 +88,8 @@ def open_fs(vol, img, ext, output):
                     _, e, _ = sys.exc_info()
                     print("[-] Unable to open FS:\n {}".format(e))
                 root = fs.open_dir(path="/")
-                recurse_files(part.addr, fs, root, [], [""], ext, output)
+                data = recurse_files(part.addr, fs, root, [], [], [""])
+                recursed_data.append(data)
 
     else:
         try:
@@ -96,11 +98,12 @@ def open_fs(vol, img, ext, output):
             _, e, _ = sys.exc_info()
             print("[-] Unable to open FS:\n {}".format(e))
         root = fs.open_dir(path="/")
-        recurse_files(1, fs, root, [], [""], ext, output)
+        data = recurse_files(1, fs, root, [], [], [""])
+        recursed_data.append(data)
+    write_csv(recursed_data, output)
 
 
-def recurse_files(part, fs, root_dir, dirs, parent, ext, output):
-    extensions = [x.strip().lower() for x in ext.split(',')]
+def recurse_files(part, fs, root_dir, dirs, data, parent):
     dirs.append(root_dir.info.fs_file.meta.addr)
     for fs_object in root_dir:
         # Skip ".", ".." or directory entries without a name.
@@ -111,8 +114,8 @@ def recurse_files(part, fs, root_dir, dirs, parent, ext, output):
             continue
         try:
             file_name = fs_object.info.name.name
-            file_path = "{}/{}".format("/".join(parent),
-                                       fs_object.info.name.name)
+            file_path = "{}/{}".format(
+                "/".join(parent), fs_object.info.name.name)
             try:
                 if fs_object.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
                     f_type = "DIR"
@@ -126,49 +129,68 @@ def recurse_files(part, fs, root_dir, dirs, parent, ext, output):
             except AttributeError:
                 continue
 
-            if file_ext.strip() in extensions:
-                print("{}".format(file_path))
-                file_writer(fs_object, file_name, file_ext, file_path,
-                            output)
+            size = fs_object.info.meta.size
+            create = convert_time(fs_object.info.meta.crtime)
+            change = convert_time(fs_object.info.meta.ctime)
+            modify = convert_time(fs_object.info.meta.mtime)
+            data.append(["PARTITION {}".format(part), file_name, file_ext,
+                         f_type, create, change, modify, size, file_path])
 
             if f_type == "DIR":
                 parent.append(fs_object.info.name.name)
                 sub_directory = fs_object.as_directory()
                 inode = fs_object.info.meta.addr
+
+                # This ensures that we don't recurse into a directory
+                # above the current level and thus avoid circular loops.
                 if inode not in dirs:
-                    recurse_files(part, fs, sub_directory, dirs,
-                                  parent, ext, output)
-                    parent.pop(-1)
+                    recurse_files(part, fs, sub_directory, dirs, data,
+                                  parent)
+                parent.pop(-1)
 
         except IOError:
             pass
     dirs.pop(-1)
+    return data
 
 
-def file_writer(fs_object, name, ext, path, output):
-    output_dir = os.path.join(output, ext,
-                              os.path.dirname(path.lstrip("//")))
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    with open(os.path.join(output_dir, name), "w") as outfile:
-        outfile.write(fs_object.read_random(0, fs_object.info.meta.size))
+def write_csv(data, output):
+    if data == []:
+        print("[-] No output results to write")
+        sys.exit(3)
+
+    print("[+] Writing output to {}".format(output))
+    with open(output, "wb") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        headers = ["Partition", "File", "File Ext", "File Type",
+                   "Create Date", "Modify Date", "Change Date", "Size",
+                   "File Path"]
+        csv_writer.writerow(headers)
+        for result_list in data:
+            csv_writer.writerows(result_list)
+
+
+def convert_time(ts):
+    if str(ts) == "0":
+        return ""
+    return datetime.utcfromtimestamp(ts)
 
 
 class EWFImgInfo(pytsk3.Img_Info):
-        def __init__(self, ewf_handle):
-            self._ewf_handle = ewf_handle
-            super(EWFImgInfo, self).__init__(
-                url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
+    def __init__(self, ewf_handle):
+        self._ewf_handle = ewf_handle
+        super(EWFImgInfo, self).__init__(url="",
+                                         type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
 
-        def close(self):
-            self._ewf_handle.close()
+    def close(self):
+        self._ewf_handle.close()
 
-        def read(self, offset, size):
-            self._ewf_handle.seek(offset)
-            return self._ewf_handle.read(size)
+    def read(self, offset, size):
+        self._ewf_handle.seek(offset)
+        return self._ewf_handle.read(size)
 
-        def get_size(self):
-            return self._ewf_handle.get_media_size()
+    def get_size(self):
+        return self._ewf_handle.get_media_size()
 
 
 if __name__ == '__main__':
@@ -180,20 +202,17 @@ if __name__ == '__main__':
     parser.add_argument("EVIDENCE_FILE", help="Evidence file path")
     parser.add_argument("TYPE", help="Type of Evidence",
                         choices=("raw", "ewf"))
-    parser.add_argument("EXT",
-                        help="Comma-delimited file extensions to extract")
-    parser.add_argument("OUTPUT_DIR", help="Output Directory")
+    parser.add_argument("OUTPUT_CSV", help="Output CSV with lookup results")
     parser.add_argument("-p", help="Partition Type",
                         choices=("DOS", "GPT", "MAC", "SUN"))
     args = parser.parse_args()
 
-    if not os.path.exists(args.OUTPUT_DIR):
-        os.makedirs(args.OUTPUT_DIR)
+    directory = os.path.dirname(args.OUTPUT_CSV)
+    if not os.path.exists(directory) and directory != "":
+        os.makedirs(directory)
 
-    if os.path.exists(args.EVIDENCE_FILE) and \
-            os.path.isfile(args.EVIDENCE_FILE):
-        main(args.EVIDENCE_FILE, args.TYPE, args.EXT, args.OUTPUT_DIR,
-             args.p)
+    if os.path.exists(args.EVIDENCE_FILE) and os.path.isfile(args.EVIDENCE_FILE):
+        main(args.EVIDENCE_FILE, args.TYPE, args.OUTPUT_CSV, args.p)
     else:
         print("[-] Supplied input file {} does not exist or is not a "
               "file".format(args.EVIDENCE_FILE))
