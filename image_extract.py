@@ -8,23 +8,18 @@ import sys
 
 """
 MIT License
-
 Copyright (c) 2017 Chapin Bryce, Preston Miller
-
 Please share comments and questions at:
     https://github.com/PythonForensics/PythonForensicsCookbook
     or email pyforcookbook@gmail.com
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -77,9 +72,9 @@ def open_fs(vol, img, ext, output):
           "to output directory")
     if vol is not None:
         for part in vol:
-            if part.len > 2048 and "Unallocated" not in part.desc \
-                    and "Extended" not in part.desc \
-                    and "Primary Table" not in part.desc:
+            if part.len > 2048 and b"Unallocated" not in part.desc \
+                    and b"Extended" not in part.desc \
+                    and b"Primary Table" not in part.desc:
                 try:
                     fs = pytsk3.FS_Info(
                         img, offset=part.start * vol.info.block_size)
@@ -104,6 +99,7 @@ def recurse_files(part, fs, root_dir, dirs, parent, ext, output):
     dirs.append(root_dir.info.fs_file.meta.addr)
     for fs_object in root_dir:
         # Skip ".", ".." or directory entries without a name.
+
         if not hasattr(fs_object, "info") or \
                 not hasattr(fs_object.info, "name") or \
                 not hasattr(fs_object.info.name, "name") or \
@@ -116,23 +112,23 @@ def recurse_files(part, fs, root_dir, dirs, parent, ext, output):
             try:
                 if fs_object.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
                     f_type = "DIR"
-                    file_ext = ""
+                    file_ext = b""
                 else:
                     f_type = "FILE"
-                    if "." in file_name:
-                        file_ext = file_name.rsplit(".")[-1].lower()
+                    if b"." in file_name:
+                        file_ext = file_name.rsplit(b".")[-1].lower()
                     else:
-                        file_ext = ""
+                        file_ext = b""
             except AttributeError:
                 continue
+            if extensions[0] in file_ext.decode('utf-8'):
 
-            if file_ext.strip() in extensions:
                 print("{}".format(file_path))
                 file_writer(fs_object, file_name, file_ext, file_path,
                             output)
 
             if f_type == "DIR":
-                parent.append(fs_object.info.name.name)
+                parent.append(fs_object.info.name.name.decode('utf-8'))
                 sub_directory = fs_object.as_directory()
                 inode = fs_object.info.meta.addr
                 if inode not in dirs:
@@ -146,12 +142,15 @@ def recurse_files(part, fs, root_dir, dirs, parent, ext, output):
 
 
 def file_writer(fs_object, name, ext, path, output):
-    output_dir = os.path.join(output, ext,
+    print("write to output dir")
+    output_dir = os.path.join(output, ext.decode('utf-8'),
                               os.path.dirname(path.lstrip("//")))
+    #print(fs_object.read_random(0, fs_object.info.meta.size))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    with open(os.path.join(output_dir, name), "w") as outfile:
-        outfile.write(fs_object.read_random(0, fs_object.info.meta.size))
+    print(type(output_dir))
+    with open(os.path.join(output_dir, name.decode('utf-8')), "w") as outfile:
+        outfile.write(str(fs_object.read_random(0, fs_object.info.meta.size)))
 
 
 class EWFImgInfo(pytsk3.Img_Info):
@@ -197,4 +196,4 @@ if __name__ == '__main__':
     else:
         print("[-] Supplied input file {} does not exist or is not a "
               "file".format(args.EVIDENCE_FILE))
-        sys.exit(1)
+sys.exit(1)

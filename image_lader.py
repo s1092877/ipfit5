@@ -9,23 +9,18 @@ import sys
 
 """
 MIT License
-
 Copyright (c) 2017 Chapin Bryce, Preston Miller
-
 Please share comments and questions at:
     https://github.com/PythonForensics/PythonForensicsCookbook
     or email pyforcookbook@gmail.com
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -78,9 +73,10 @@ def open_fs(vol, img, output):
     # Open FS and Recurse
     if vol is not None:
         for part in vol:
-            if part.len > 2048 and "Unallocated" not in part.desc and \
-                    "Extended" not in part.desc and \
-                    "Primary Table" not in part.desc:
+            print(part.desc)
+            if part.len > 2048 and b"Unallocated" not in part.desc and \
+                    b"Extended" not in part.desc and \
+                    b"Primary Table" not in part.desc:
                 try:
                     fs = pytsk3.FS_Info(
                         img, offset=part.start * vol.info.block_size)
@@ -114,6 +110,7 @@ def recurse_files(part, fs, root_dir, dirs, data, parent):
             continue
         try:
             file_name = fs_object.info.name.name
+            print(parent)
             file_path = "{}/{}".format(
                 "/".join(parent), fs_object.info.name.name)
             try:
@@ -122,8 +119,8 @@ def recurse_files(part, fs, root_dir, dirs, data, parent):
                     file_ext = ""
                 else:
                     f_type = "FILE"
-                    if "." in file_name:
-                        file_ext = file_name.rsplit(".")[-1].lower()
+                    if b"." in file_name:
+                        file_ext = file_name.rsplit(b".")[-1].lower()
                     else:
                         file_ext = ""
             except AttributeError:
@@ -137,7 +134,7 @@ def recurse_files(part, fs, root_dir, dirs, data, parent):
                          f_type, create, change, modify, size, file_path])
 
             if f_type == "DIR":
-                parent.append(fs_object.info.name.name)
+                parent.append(fs_object.info.name.name.decode('utf-8'))
                 sub_directory = fs_object.as_directory()
                 inode = fs_object.info.meta.addr
 
@@ -160,11 +157,12 @@ def write_csv(data, output):
         sys.exit(3)
 
     print("[+] Writing output to {}".format(output))
-    with open(output, "wb") as csvfile:
+    with open(output, "w") as csvfile:
         csv_writer = csv.writer(csvfile)
         headers = ["Partition", "File", "File Ext", "File Type",
                    "Create Date", "Modify Date", "Change Date", "Size",
                    "File Path"]
+        print(headers)
         csv_writer.writerow(headers)
         for result_list in data:
             csv_writer.writerows(result_list)
@@ -216,4 +214,4 @@ if __name__ == '__main__':
     else:
         print("[-] Supplied input file {} does not exist or is not a "
               "file".format(args.EVIDENCE_FILE))
-        sys.exit(1)
+sys.exit(1)
